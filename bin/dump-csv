@@ -23,7 +23,23 @@ class PullRequest < ActiveRecord::Base
 end
 
 puts CSV.generate { |csv|
-  csv << ["url", "repository_name", "api_url", "github_id", "number", "title", "author_login", "github_created_at", "github_updated_at", "closed_at", "body", "categorized_as_feature_by_human", "state", "changed_lines", "removed_lines"]
+  csv << [
+    "url",
+    "repository_name",
+    "api_url",
+    "github_id",
+    "number",
+    "title",
+    "author_login",
+    "github_created_at",
+    "github_updated_at",
+    "closed_at",
+    "body",
+    "categorized_as_feature_by_human",
+    "state",
+    "changed_lines",
+    "removed_lines",
+  ]
 
   PullRequest.all.each do |pr|
     csv << [
