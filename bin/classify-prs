@@ -74,7 +74,11 @@ class CLI
   end
 
   def show
-    puts "repository: #{pr.repository_name}, title: #{pr.title}, author: #{pr.author_login}"
+    puts
+    puts "*" * 40
+    puts "repository: #{pr.repository_name}"
+    puts "title: #{pr.title}"
+    puts "author: #{pr.author_login}"
   end
 
   def yes!
