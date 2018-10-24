@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+
+require "readline"
+
+require "bundler"
+Bundler.require(:default)
+
+Dotenv.load
+
+DB_PATH = "./dbs/data.sqlite3".freeze
+
+$logger = Logger.new(STDERR)
+$logger.level = Logger::INFO
+
+ActiveRecord::Base.logger = $logger
+
+ActiveRecord::Base.establish_connection(
+  adapter: "sqlite3",
+  database: "./dbs/data.sqlite3",
+)
+
+class PullRequest < ActiveRecord::Base
+end
+
+class CLI
+  def self.start(pr)
+    new(pr).run
+  end
+
+  def initialize(pr)
+    @pr = pr
+  end
+
+  def run
+    show
+
+    loop do
+      case Readline.readline("> ").to_s.chomp.downcase
+      when "help" then help
+      when "s", "show" then show
+      when "y", "yes"
+        yes!
+        break
+      when "n", "no"
+        no!
+        break
+      when "o", "open"
+        Launchy.open(pr.url)
+      when "e", "exit"
+        return false
+      else
+        puts "Skipping for now"
+        break
+      end
+    end
+
+    true
+  end
+
+  private
+
+  attr_reader :pr
+
+  def help
+    puts "help/h - show this message"
+    puts "show/s - show PR details preview"
+    puts "yes/y - classify PR as a feature PR"
+    puts "no/n - classify PR as a non-feature PR"
+    puts "open/o - open PR in browser to help classify"
+    puts "(anything else) - skip PR for now"
+  end
+
+  def show
+    puts "repository: #{pr.repository_name}, title: #{pr.title}"
+  end
+
+  def yes!
+    pr.update!(categorized_as_feature_by_human: true)
+  end
+
+  def no!
+    pr.update!(categorized_as_feature_by_human: false)
+  end
+end
+
+PullRequest.where(categorized_as_feature_by_human: nil).each do |pr|
+  result = CLI.start(pr)
+  if result == false
+    puts 'exiting'
+    exit
+  end
+end
