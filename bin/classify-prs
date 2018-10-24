@@ -55,6 +55,9 @@ class CLI
     end
 
     true
+  rescue Interrupt
+    puts
+    false
   end
 
   private
@@ -71,7 +74,7 @@ class CLI
   end
 
   def show
-    puts "repository: #{pr.repository_name}, title: #{pr.title}"
+    puts "repository: #{pr.repository_name}, title: #{pr.title}, author: #{pr.author_login}"
   end
 
   def yes!
@@ -83,7 +86,13 @@ class CLI
   end
 end
 
-PullRequest.where(categorized_as_feature_by_human: nil).each do |pr|
+total = PullRequest.count
+remaining = PullRequest.where(categorized_as_feature_by_human: nil)
+
+pct = (100 - remaining.count.to_f / total.to_f * 100).round(2)
+puts "Current progress: #{pct}%"
+
+remaining.each do |pr|
   result = CLI.start(pr)
   if result == false
     puts 'exiting'
