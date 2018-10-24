@@ -49,6 +49,19 @@ ActiveRecord::Base.connection.execute %{
     pull_requests(github_id);
 }
 
+def has_column?(col)
+  ActiveRecord::Base.connection.execute("select * from pull_requests limit 1").first.keys.map(&:to_s).map(&:to_sym).include?(col)
+end
+
+[:changed_lines, :files_added, :files_changed, :files_deleted, :removed_lines].each do |col|
+  unless has_column?(col)
+    ActiveRecord::Base.connection.execute %{
+      alter table pull_requests
+        add column #{col} integer;
+    }
+  end
+end
+
 class PullRequest < ActiveRecord::Base
 end
 
@@ -58,11 +71,34 @@ client = Octokit::Client.new(
 
 client.auto_paginate = true
 
+class DiffAnalysis < Struct.new(:client, :repository, :pr)
+  def changed_lines
+    @changed_lines ||= patch.changed_lines.count
+  end
+
+  def removed_lines
+    @removed_lines ||= patch.removed_lines.count
+  end
+
+  private
+
+  def patch
+    @patch ||= begin
+                 diff = client.pull_request(repository, pr.number, accept: "application/vnd.github.patch")
+                 GitDiffParser::Patch.new(diff)
+               end
+  end
+end
+
 $logger.info "Loading data from GitHub"
 
 ["open", "closed"].each do |state|
+  $logger.info "Loading #{state} PRs for #{repository}"
+
   client.pulls(repository, state: state).each do |pr|
     $logger.info "Inserting #{pr.html_url}"
+
+    diff_analysis = DiffAnalysis.new(client, repository, pr)
 
     begin
       PullRequest.create!(
@@ -79,9 +115,31 @@ $logger.info "Loading data from GitHub"
         body: pr.body,
         categorized_as_feature_by_human: nil, # will categorize later
         state: pr.state,
+        changed_lines: diff_analysis.changed_lines,
+        removed_lines: diff_analysis.removed_lines,
       )
+      $logger.info "... done"
     rescue ActiveRecord::RecordNotUnique
-      $logger.info "Already existed"
+      $logger.info "Already existed, updating..."
+
+      pull_request = PullRequest.find_by!(github_id: pr.id)
+      pull_request.update!(
+        url: pr.html_url,
+        repository_name: repository,
+        api_url: pr.url,
+        github_id: pr.id,
+        number: pr.number,
+        title: pr.title,
+        author_login: pr.user.login,
+        github_created_at: pr.created_at,
+        github_updated_at: pr.updated_at,
+        closed_at: pr.closed_at,
+        body: pr.body,
+        state: pr.state,
+        changed_lines: diff_analysis.changed_lines,
+        removed_lines: diff_analysis.removed_lines,
+      )
+      $logger.info "... done"
     end
   end
 end

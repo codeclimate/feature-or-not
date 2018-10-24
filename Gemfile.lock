@@ -20,6 +20,7 @@ GEM
     dotenv (2.5.0)
     faraday (0.15.3)
       multipart-post (>= 1.2, < 3)
+    git_diff_parser (3.1.0)
     i18n (1.1.1)
       concurrent-ruby (~> 1.0)
     launchy (2.4.3)
@@ -47,6 +48,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord
   dotenv
+  git_diff_parser
   launchy
   octokit
   pry
