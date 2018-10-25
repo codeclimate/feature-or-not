@@ -53,7 +53,7 @@ def has_column?(col)
   ActiveRecord::Base.connection.execute("select * from pull_requests limit 1").first.keys.map(&:to_s).map(&:to_sym).include?(col)
 end
 
-[:changed_lines, :files_added, :files_changed, :files_deleted, :removed_lines].each do |col|
+[:additions, :deletions, :changed_lines, :files_added, :files_changed, :files_deleted, :removed_lines].each do |col|
   unless has_column?(col)
     ActiveRecord::Base.connection.execute %{
       alter table pull_requests
@@ -80,6 +80,14 @@ class DiffAnalysis < Struct.new(:client, :repository, :pr)
     @removed_lines ||= patch.removed_lines.count
   end
 
+  def additions
+    pr_json.additions
+  end
+
+  def deletions
+    pr_json.deletions
+  end
+
   private
 
   def patch
@@ -87,6 +95,10 @@ class DiffAnalysis < Struct.new(:client, :repository, :pr)
                  diff = client.pull_request(repository, pr.number, accept: "application/vnd.github.patch")
                  GitDiffParser::Patch.new(diff)
                end
+  end
+
+  def pr_json
+    @pr_json ||= client.pull_request(repository, pr.number)
   end
 end
 
@@ -115,8 +127,10 @@ $logger.info "Loading data from GitHub"
         body: pr.body,
         categorized_as_feature_by_human: nil, # will categorize later
         state: pr.state,
-        changed_lines: diff_analysis.changed_lines,
-        removed_lines: diff_analysis.removed_lines,
+        # changed_lines: diff_analysis.changed_lines,
+        # removed_lines: diff_analysis.removed_lines,
+        additions: diff_analysis.additions,
+        deletions: diff_analysis.deletions,
       )
       $logger.info "... done"
     rescue ActiveRecord::RecordNotUnique
@@ -136,8 +150,10 @@ $logger.info "Loading data from GitHub"
         closed_at: pr.closed_at,
         body: pr.body,
         state: pr.state,
-        changed_lines: diff_analysis.changed_lines,
-        removed_lines: diff_analysis.removed_lines,
+        # changed_lines: diff_analysis.changed_lines,
+        # removed_lines: diff_analysis.removed_lines,
+        additions: diff_analysis.additions,
+        deletions: diff_analysis.deletions,
       )
       $logger.info "... done"
     end

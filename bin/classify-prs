@@ -20,6 +20,7 @@ ActiveRecord::Base.establish_connection(
 )
 
 class PullRequest < ActiveRecord::Base
+  scope :unclassified, -> { where(categorized_as_feature_by_human: nil) }
 end
 
 class CLI
@@ -48,6 +49,7 @@ class CLI
         Launchy.open(pr.url)
       when "e", "exit"
         return false
+      when "p", "pry" then pry
       else
         puts "Skipping for now"
         break
@@ -76,9 +78,11 @@ class CLI
   def show
     puts
     puts "*" * 40
-    puts "repository: #{pr.repository_name}"
+    puts "repository: #{pr.repository_name}##{pr.number}"
     puts "title: #{pr.title}"
     puts "author: #{pr.author_login}"
+    puts "opened: #{pr.github_created_at.to_date}"
+    puts "size: #{pr.additions.to_i + pr.deletions.to_i} lines"
   end
 
   def yes!
@@ -88,13 +92,17 @@ class CLI
   def no!
     pr.update!(categorized_as_feature_by_human: false)
   end
+
+  def pry
+    binding.pry
+  end
 end
 
 total = PullRequest.count
-remaining = PullRequest.where(categorized_as_feature_by_human: nil)
+remaining = PullRequest.unclassified
 
 pct = (100 - remaining.count.to_f / total.to_f * 100).round(2)
-puts "Current progress: #{pct}%"
+puts "Current progress: #{pct}% (#{total - remaining.count} / #{total} classified)"
 
 remaining.each do |pr|
   result = CLI.start(pr)

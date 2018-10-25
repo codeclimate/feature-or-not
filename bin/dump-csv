@@ -37,8 +37,8 @@ puts CSV.generate { |csv|
     "body",
     "categorized_as_feature_by_human",
     "state",
-    "changed_lines",
-    "removed_lines",
+    "additions",
+    "deletions",
   ]
 
   PullRequest.all.each do |pr|
@@ -56,8 +56,8 @@ puts CSV.generate { |csv|
       pr.body,
       pr.categorized_as_feature_by_human,
       pr.state,
-      pr.changed_lines,
-      pr.removed_lines,
+      pr.additions,
+      pr.deletions,
     ]
   end
 }
