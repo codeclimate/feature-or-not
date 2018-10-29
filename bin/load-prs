@@ -50,7 +50,9 @@ ActiveRecord::Base.connection.execute %{
 }
 
 def has_column?(col)
-  ActiveRecord::Base.connection.execute("select * from pull_requests limit 1").first.keys.map(&:to_s).map(&:to_sym).include?(col)
+  row = ActiveRecord::Base.connection.execute("select * from pull_requests limit 1").first
+  return false if row.nil?
+  row.keys.map(&:to_s).map(&:to_sym).include?(col)
 end
 
 [:additions, :deletions, :changed_lines, :files_added, :files_changed, :files_deleted, :removed_lines].each do |col|
